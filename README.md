@@ -1,34 +1,77 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+import {
+Dispatch,
+SetStateAction,
+useCallback,
+useEffect,
+useState,
+} from "react";
 
-## Getting Started
+type SetValue<T> = Dispatch<SetStateAction<T>>;
 
-First, run the development server:
+function useLocalStorage<T>(key: string, initialValue: T): [T, SetValue<T>] {
+// Get from local storage then
+// parse stored json or return initialValue
+const readValue = useCallback((): T => {
+// Prevent build error "window is undefined" but keep keep working
+if (typeof window === "undefined") {
+return initialValue;
+}
 
-```bash
-npm run dev
-# or
-yarn dev
-```
+    try {
+      const item = window.localStorage.getItem(key);
+      return item ? (parseJSON(item) as T) : initialValue;
+    } catch (error) {
+      console.warn(`Error reading localStorage key “${key}”:`, error);
+      return initialValue;
+    }
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+}, [initialValue, key]);
 
-You can start editing the page by modifying `pages/index.tsx`. The page auto-updates as you edit the file.
+// State to store our value
+// Pass initial state function to useState so logic is only executed once
+const [storedValue, setStoredValue] = useState<T>(readValue);
 
-[API routes](https://nextjs.org/docs/api-routes/introduction) can be accessed on [http://localhost:3000/api/hello](http://localhost:3000/api/hello). This endpoint can be edited in `pages/api/hello.ts`.
+// Return a wrapped version of useState's setter function that ...
+// ... persists the new value to localStorage.
+const setValue: SetValue<T> = (value) => {
+// Prevent build error "window is undefined" but keeps working
+if (typeof window == "undefined") {
+console.warn(
+`Tried setting localStorage key “${key}” even though environment is not a client`
+);
+}
 
-The `pages/api` directory is mapped to `/api/*`. Files in this directory are treated as [API routes](https://nextjs.org/docs/api-routes/introduction) instead of React pages.
+    try {
+      // Allow value to be a function so we have the same API as useState
+      const newValue = value instanceof Function ? value(storedValue) : value;
 
-## Learn More
+      // Save to local storage
+      window.localStorage.setItem(key, JSON.stringify(newValue));
 
-To learn more about Next.js, take a look at the following resources:
+      // Save state
+      setStoredValue(newValue);
+    } catch (error) {
+      console.warn(`Error setting localStorage key “${key}”:`, error);
+    }
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+};
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+useEffect(() => {
+setStoredValue(readValue());
+// eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
 
-## Deploy on Vercel
+return [storedValue, setValue];
+}
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+export default useLocalStorage;
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+// A wrapper for "JSON.parse()"" to support "undefined" value
+function parseJSON<T>(value: string | null): T | undefined {
+try {
+return value === "undefined" ? undefined : JSON.parse(value ?? "");
+} catch {
+console.log("parsing error on", { value });
+return undefined;
+}
+}
