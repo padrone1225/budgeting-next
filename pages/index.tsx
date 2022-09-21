@@ -1,8 +1,12 @@
 import type { NextPage } from "next";
 import { SyntheticEvent, useState } from "react";
+import AddBudget from "../components/AddBudget";
+import AddExpense from "../components/AddExpense";
 import Background from "../components/Background";
 import BudgetCard from "../components/BudgetCard";
 import Header from "../components/Header";
+import TotalBudgetCard from "../components/TotalBudgetCard";
+import UncategorizedBudgetCard from "../components/UncategorizedBudgetCard";
 import { ThemeProvider } from "../themes/mode";
 import BudgetStateInterface from "../types/BudgetStateInterface";
 import Expense from "../types/Expense";
@@ -44,6 +48,13 @@ const Home: NextPage = () => {
     setBudgets(updatedBudgets);
   }
 
+  function handleUncategorizedDelete(uncategorizedId: number) {
+    const updatedUncategorized = uncategorizedExpenses.filter(
+      (expense) => expense.id !== uncategorizedId
+    );
+    setUncategorizedExpenses(updatedUncategorized);
+  }
+
   return (
     <ThemeProvider>
       <Background>
@@ -62,6 +73,30 @@ const Home: NextPage = () => {
               onHandleBudgetDelete={handleBudgetDelete}
             />
           ))}
+          <UncategorizedBudgetCard
+            onShowAddExpense={handleShowAddExpense}
+            uncategorized={uncategorizedExpenses}
+            onHandleUncategorizedDelete={handleUncategorizedDelete}
+          />
+          <TotalBudgetCard
+            budgets={budgets}
+            onShowAddExpense={handleShowAddExpense}
+          />
+          {showAddBudget && (
+            <AddBudget
+              state={budgets}
+              onHandleStateChange={handleStateChange}
+              onCloseAddBudget={handleShowAddBudget}
+            />
+          )}
+          {showAddExpense && (
+            <AddExpense
+              state={budgets}
+              onCloseAddExpense={handleShowAddExpense}
+              onHandleStateChange={handleStateChange}
+              selectedBudget={selectedBudget}
+            />
+          )}
         </div>
       </Background>
     </ThemeProvider>
